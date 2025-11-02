@@ -1,0 +1,17 @@
+# Logs
+*.log
+
+# Personal configuration backups
+*-backup.json
+*-local.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

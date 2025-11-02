@@ -1,0 +1,497 @@
+{
+  "name": "File Organizer",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 19
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -976,
+        336
+      ],
+      "id": "4919eea9-019b-409c-b52b-2ccc6055d41c",
+      "name": "Daily Schedule",
+      "notes": "Triggers at 7:00 PM daily"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Configuration\nreturn [{\n  json: {\n    dry_run: false,  // Set to true for preview mode, false for actual file moves\n    execution_id: $now.toISO(),\n    timestamp: new Date().toISOString(),\n    home: process.env.HOME || '/home/username'  // Change to your home directory\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        432
+      ],
+      "id": "d08056c2-3f4b-4bcb-9aa5-26445ac5ffa0",
+      "name": "Configuration",
+      "notes": "Set dry_run to true for testing, false for actual file moves"
+    },
+    {
+      "parameters": {
+        "command": "=find {{ $json.home }}/Downloads {{ $json.home }}/Documents {{ $json.home }}/Pictures {{ $json.home }}/Desktop -maxdepth 1 -type f ! -name '.*' 2>/dev/null | head -50"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -528,
+        336
+      ],
+      "id": "b90eb7de-902b-43b2-96dd-54bcdb771c47",
+      "name": "Find Root Files"
+    },
+    {
+      "parameters": {
+        "command": "=find {{ $json.home }}/Downloads {{ $json.home }}/Documents {{ $json.home }}/Pictures {{ $json.home }}/Videos -maxdepth 2 -mindepth 2 -type f ! -name '.*' 2>/dev/null | head -100"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -528,
+        528
+      ],
+      "id": "70139416-c8d7-49e3-ae47-9832a900aebd",
+      "name": "Find Nested Files"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge file lists\nconst config = $('Configuration').first().json;\nconst allInputs = $input.all();\nconst files1 = allInputs[0]?.json?.stdout || '';\nconst files2 = allInputs[1]?.json?.stdout || '';\n\nconst allFiles = (files1 + '\\n' + files2)\n  .split('\\n')\n  .filter(f => f.trim() && !f.includes('/file_change_logs/'));\n\nreturn allFiles.map(filepath => ({\n  json: {\n    filepath,\n    filename: filepath.split('/').pop(),\n    directory: filepath.substring(0, filepath.lastIndexOf('/')),\n    extension: filepath.includes('.') ? filepath.split('.').pop().toLowerCase() : 'none',\n    ...config\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -304,
+        432
+      ],
+      "id": "5dc6a1aa-ea7b-4177-96c5-ceac7064ab88",
+      "name": "Merge Files"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.filepath }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        432
+      ],
+      "id": "d64c24b6-bbc0-401e-80dc-1077f737046e",
+      "name": "Filter Valid Files"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all batches\nconst all = $input.all();\nlet approved = [];\nlet rejected = [];\n\nfor (const item of all) {\n  approved = approved.concat(item.json.approved || []);\n  rejected = rejected.concat(item.json.rejected || []);\n}\n\nconst config = $('Configuration').first().json;\n\nreturn [{\n  json: {\n    approved,\n    rejected,\n    total_approved: approved.length,\n    total_rejected: rejected.length,\n    dry_run: config.dry_run,\n    execution_id: config.execution_id,\n    home: config.home\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        432
+      ],
+      "id": "3a897e22-b12b-4ba5-839b-8a5eef75bb6f",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.dry_run }}",
+              "rightValue": "false",
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            },
+            {
+              "leftValue": "={{ $json.total_approved }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        592,
+        432
+      ],
+      "id": "08053b3d-382d-49b8-86f7-e2c585113450",
+      "name": "Check Mode"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract unique directories\nconst approved = $json.approved || [];\nconst dirs = new Set();\n\nfor (const a of approved) {\n  if (a.create_folder && a.destination) {\n    const dir = a.destination.substring(0, a.destination.lastIndexOf('/'));\n    if (dir) dirs.add(dir);\n  }\n}\n\nreturn Array.from(dirs).map(dir => ({\n  json: { directory: dir }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        288
+      ],
+      "id": "8d0218b9-3e57-4257-8cd4-30f883fa7e2a",
+      "name": "Extract Dirs"
+    },
+    {
+      "parameters": {
+        "executeOnce": false,
+        "command": "=mkdir -p \"{{ $json.directory }}\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        288
+      ],
+      "id": "2c907334-c136-43d7-936d-fbf5a873e0a8",
+      "name": "Create Dirs"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare move commands with edge case handling\nconst approved = $('Aggregate').first().json.approved || [];\nconst moves = [];\nconst skipped = [];\n\nfor (const a of approved) {\n  const source = a.file;\n  const destination = a.destination;\n  \n  // Edge case 1: Source and destination are the same (file already in correct location)\n  if (source === destination) {\n    skipped.push({\n      file: source,\n      reason: 'Already in correct location',\n      destination: destination\n    });\n    continue;\n  }\n  \n  // Edge case 2: Source directory is same as destination directory (nested files)\n  const sourceDir = source.substring(0, source.lastIndexOf('/'));\n  const destDir = destination.substring(0, destination.lastIndexOf('/'));\n  \n  if (sourceDir === destDir) {\n    skipped.push({\n      file: source,\n      reason: 'Already in target directory',\n      destination: destination\n    });\n    continue;\n  }\n  \n  // Valid move - add to list\n  moves.push({\n    source: source,\n    destination: destination,\n    reason: a.reason\n  });\n}\n\n// Log skipped files for visibility\nif (skipped.length > 0) {\n  console.log(`Skipped ${skipped.length} files already in correct location`);\n}\n\nreturn moves.map(m => ({ json: m }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        576
+      ],
+      "id": "5d014027-2488-406e-aa0f-86718db9dda6",
+      "name": "Prepare Moves"
+    },
+    {
+      "parameters": {
+        "executeOnce": false,
+        "command": "=if [ -f \"{{ $json.source }}\" ] && [ ! \"{{ $json.source }}\" -ef \"{{ $json.destination }}\" ]; then mv \"{{ $json.source }}\" \"{{ $json.destination }}\" 2>&1 || echo \"Error moving file: $?\"; else echo \"Skipped: File already moved or doesn't exist\"; fi"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        576
+      ],
+      "id": "dc675e2e-e6bf-4f76-9030-6dd1e7927f5c",
+      "name": "Move Files"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        432
+      ],
+      "id": "d3788671-2eb6-4a24-ba5a-0a7b0b7da9e0",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare execution log\nconst aggregated = $('Aggregate').first().json;\nconst config = $('Configuration').first().json;\n\nconst log = {\n  execution_id: config.execution_id,\n  timestamp: config.timestamp,\n  dry_run: config.dry_run,\n  summary: {\n    files_analyzed: $('Filter Valid Files').itemMatches?.length || 0,\n    files_moved: config.dry_run ? 0 : aggregated.total_approved,\n    approved: aggregated.total_approved,\n    rejected: aggregated.total_rejected\n  },\n  approved_actions: aggregated.approved,\n  rejected_actions: aggregated.rejected\n};\n\nconst ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);\nconst logDir = `${config.home}/Desktop/file_change_logs`;\nconst logFile = `${logDir}/${ts}.json`;\n\nreturn [{\n  json: {\n    ...log,\n    log_file: logFile,\n    log_dir: logDir,\n    log_json: JSON.stringify(log, null, 2)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        432
+      ],
+      "id": "c9b261e7-4356-4751-ad3d-93e754d15382",
+      "name": "Prepare Log"
+    },
+    {
+      "parameters": {
+        "command": "=mkdir -p \"{{ $json.log_dir }}\" && echo '{{ $json.log_json }}' > \"{{ $json.log_file }}\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1712,
+        432
+      ],
+      "id": "08a53efc-ba95-4b31-a127-58e1dfafe9a2",
+      "name": "Write Log"
+    },
+    {
+      "parameters": {
+        "fromEmail": "n8n@localhost",
+        "toEmail": "your-email@example.com",
+        "subject": "=File Organizer: {{ $json.summary.files_moved }} files organized by extension",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1936,
+        432
+      ],
+      "id": "94d81fd3-c2ba-47f8-9906-8320210a538b",
+      "name": "Send Email"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -976,
+        528
+      ],
+      "id": "c86763be-9aaf-46da-9150-96a6e43a09bf",
+      "name": "When clicking \u2018Execute workflow\u2019"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Comprehensive extension-based file organization\nconst home = $json.home;\nconst filepath = $json.filepath;\nconst filename = $json.filename;\nconst extension = $json.extension;\n\n// Comprehensive extension mapping\nconst extensionMap = {\n  // Documents - Office\n  'docx': 'Documents/Office',\n  'doc': 'Documents/Office',\n  'pptx': 'Documents/Office',\n  'ppt': 'Documents/Office',\n  'xlsx': 'Documents/Office',\n  'xls': 'Documents/Office',\n  'odt': 'Documents/Office',\n  'ods': 'Documents/Office',\n  'odp': 'Documents/Office',\n  \n  // Documents - PDFs\n  'pdf': 'Documents/PDF',\n  \n  // Documents - Text\n  'txt': 'Documents/Text',\n  'md': 'Documents/Text',\n  'markdown': 'Documents/Text',\n  'rtf': 'Documents/Text',\n  \n  // Documents - Data/Spreadsheets\n  'csv': 'Documents/Data',\n  'tsv': 'Documents/Data',\n  'xml': 'Documents/Data',\n  \n  // Code - Web Development\n  'html': 'Documents/Code/Web',\n  'css': 'Documents/Code/Web',\n  'js': 'Documents/Code/Web',\n  'jsx': 'Documents/Code/Web',\n  'ts': 'Documents/Code/Web',\n  'tsx': 'Documents/Code/Web',\n  'mjs': 'Documents/Code/Web',\n  'cjs': 'Documents/Code/Web',\n  'mts': 'Documents/Code/Web',\n  'cts': 'Documents/Code/Web',\n  'svelte': 'Documents/Code/Web',\n  'vue': 'Documents/Code/Web',\n  'scss': 'Documents/Code/Web',\n  'sass': 'Documents/Code/Web',\n  'less': 'Documents/Code/Web',\n  \n  // Code - Python\n  'py': 'Documents/Code/Python',\n  'pyc': 'Documents/Code/Python',\n  'pyi': 'Documents/Code/Python',\n  'pth': 'Documents/Code/Python',\n  'ipynb': 'Documents/Code/Python',\n  \n  // Code - Systems Programming\n  'c': 'Documents/Code/Systems',\n  'cpp': 'Documents/Code/Systems',\n  'h': 'Documents/Code/Systems',\n  'hpp': 'Documents/Code/Systems',\n  'cc': 'Documents/Code/Systems',\n  'cxx': 'Documents/Code/Systems',\n  'f': 'Documents/Code/Systems',\n  'f90': 'Documents/Code/Systems',\n  'f95': 'Documents/Code/Systems',\n  'go': 'Documents/Code/Systems',\n  'rs': 'Documents/Code/Systems',\n  'rust': 'Documents/Code/Systems',\n  \n  // Code - Other Languages\n  'java': 'Documents/Code/Java',\n  'kt': 'Documents/Code/Java',\n  'scala': 'Documents/Code/Java',\n  'swift': 'Documents/Code/Swift',\n  'r': 'Documents/Code/R',\n  'sql': 'Documents/Code/SQL',\n  \n  // Code - Scripts\n  'sh': 'Documents/Code/Scripts',\n  'bash': 'Documents/Code/Scripts',\n  'zsh': 'Documents/Code/Scripts',\n  'fish': 'Documents/Code/Scripts',\n  'ps1': 'Documents/Code/Scripts',\n  'bat': 'Documents/Code/Scripts',\n  'cmd': 'Documents/Code/Scripts',\n  \n  // Code - Configuration\n  'json': 'Documents/Code/Config',\n  'yml': 'Documents/Code/Config',\n  'yaml': 'Documents/Code/Config',\n  'toml': 'Documents/Code/Config',\n  'ini': 'Documents/Code/Config',\n  'conf': 'Documents/Code/Config',\n  'cfg': 'Documents/Code/Config',\n  'env': 'Documents/Code/Config',\n  \n  // Code - Other\n  'proto': 'Documents/Code/Other',\n  'glsl': 'Documents/Code/Other',\n  'map': 'Documents/Code/Other',\n  \n  // Pictures - Images\n  'png': 'Pictures/Images',\n  'jpg': 'Pictures/Images',\n  'jpeg': 'Pictures/Images',\n  'gif': 'Pictures/Images',\n  'webp': 'Pictures/Images',\n  'svg': 'Pictures/Images',\n  'bmp': 'Pictures/Images',\n  'tiff': 'Pictures/Images',\n  'tif': 'Pictures/Images',\n  'heic': 'Pictures/Images',\n  'heif': 'Pictures/Images',\n  'ico': 'Pictures/Images',\n  'raw': 'Pictures/Images',\n  'cr2': 'Pictures/Images',\n  'nef': 'Pictures/Images',\n  \n  // Pictures - Design Files\n  'fig': 'Pictures/Design',\n  'sketch': 'Pictures/Design',\n  'xd': 'Pictures/Design',\n  'psd': 'Pictures/Design',\n  'ai': 'Pictures/Design',\n  \n  // Videos\n  'mp4': 'Videos/Movies',\n  'avi': 'Videos/Movies',\n  'mkv': 'Videos/Movies',\n  'mov': 'Videos/Movies',\n  'wmv': 'Videos/Movies',\n  'flv': 'Videos/Movies',\n  'webm': 'Videos/Movies',\n  'm4v': 'Videos/Movies',\n  'mpg': 'Videos/Movies',\n  'mpeg': 'Videos/Movies',\n  \n  // Audio\n  'mp3': 'Documents/Audio',\n  'wav': 'Documents/Audio',\n  'flac': 'Documents/Audio',\n  'aac': 'Documents/Audio',\n  'ogg': 'Documents/Audio',\n  'm4a': 'Documents/Audio',\n  'wma': 'Documents/Audio',\n  'opus': 'Documents/Audio',\n  \n  // Archives\n  'zip': 'Documents/Archives',\n  'rar': 'Documents/Archives',\n  '7z': 'Documents/Archives',\n  'tar': 'Documents/Archives',\n  'gz': 'Documents/Archives',\n  'bz2': 'Documents/Archives',\n  'xz': 'Documents/Archives',\n  'tgz': 'Documents/Archives',\n  'tbz2': 'Documents/Archives',\n  \n  // Executables/Installers\n  'deb': 'Downloads/Installers',\n  'rpm': 'Downloads/Installers',\n  'appimage': 'Downloads/Installers',\n  'exe': 'Downloads/Installers',\n  'msi': 'Downloads/Installers',\n  'dmg': 'Downloads/Installers',\n  'pkg': 'Downloads/Installers',\n  \n  // Binaries/Libraries\n  'dll': 'Downloads/Binaries',\n  'so': 'Downloads/Binaries',\n  'lib': 'Downloads/Binaries',\n  'wasm': 'Downloads/Binaries',\n  'dylib': 'Downloads/Binaries',\n  'pyd': 'Downloads/Binaries'\n};\n\n// Get folder from mapping\nlet folder = extensionMap[extension];\n\n// Special case: Screenshots\nif ((folder === 'Pictures/Images' || !folder) && filename.toLowerCase().includes('screenshot')) {\n  folder = 'Pictures/Screenshots';\n}\n\n// Default to Other if not found\nif (!folder) {\n  folder = 'Downloads/Other';\n}\n\nconst destination = `${home}/${folder}/${filename}`;\n\nreturn {\n  json: {\n    approved: [{\n      file: filepath,\n      action: 'move',\n      destination: destination,\n      create_folder: true,\n      reason: `Organizing ${extension} file to ${folder}`\n    }],\n    rejected: []\n  }\n};"
+      },
+      "id": "extension-mapper-001",
+      "name": "Map Extensions to Folders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        432
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Daily Schedule": {
+      "main": [
+        [
+          {
+            "node": "Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuration": {
+      "main": [
+        [
+          {
+            "node": "Find Root Files",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Find Nested Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Root Files": {
+      "main": [
+        [
+          {
+            "node": "Merge Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Nested Files": {
+      "main": [
+        [
+          {
+            "node": "Merge Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Files": {
+      "main": [
+        [
+          {
+            "node": "Filter Valid Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Check Mode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Mode": {
+      "main": [
+        [
+          {
+            "node": "Extract Dirs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Moves",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Dirs": {
+      "main": [
+        [
+          {
+            "node": "Create Dirs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Dirs": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Moves": {
+      "main": [
+        [
+          {
+            "node": "Move Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move Files": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Prepare Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Log": {
+      "main": [
+        [
+          {
+            "node": "Write Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Log": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking \u2018Execute workflow\u2019": {
+      "main": [
+        [
+          {
+            "node": "Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Valid Files": {
+      "main": [
+        [
+          {
+            "node": "Map Extensions to Folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Extensions to Folders": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "timezone": "UTC",
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}
