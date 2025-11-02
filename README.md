@@ -1,10 +1,6 @@
 # n8n Workflows Collection
 
-A curated collection of production-ready n8n workflows for automation, productivity, and system management.
-
-## 🎯 Purpose
-
-This repository contains battle-tested n8n workflows designed to automate common tasks, improve productivity, and streamline system operations. Each workflow is fully documented, sanitized for public use, and ready to import into your n8n instance.
+A collection of personal n8n workflows for automation, productivity, and system management.
 
 ## 📁 Available Workflows
 
@@ -13,6 +9,7 @@ This repository contains battle-tested n8n workflows designed to automate common
 Intelligent file organization workflow that automatically sorts files based on their extensions.
 
 **Features:**
+
 - 🎯 Supports 133+ file types
 - 📊 Extension-based categorization
 - 📧 Email notifications
@@ -20,7 +17,7 @@ Intelligent file organization workflow that automatically sorts files based on t
 - 🛡️ Edge case handling
 - 📝 Comprehensive logging
 
-**Status:** ✅ Production Ready  
+**Status:** Ready for use  
 **OS:** Linux (Ubuntu, Debian, Fedora)  
 **Version:** 1.0.0
 
@@ -32,27 +29,22 @@ Intelligent file organization workflow that automatically sorts files based on t
 
 1. **Choose a workflow** from the list above
 2. **Navigate to its folder** and read the README
-3. **Follow the SETUP.md** for installation instructions
+3. **Follow the instructions** for installation
 4. **Import the workflow.json** into your n8n instance
 5. **Configure** according to your needs
 
 ## 📋 Requirements
 
 ### General Requirements
+
 - n8n version 1.0.0 or higher
 - Node.js 18.x or higher
 - Active n8n instance (self-hosted or cloud)
 
 ### Workflow-Specific Requirements
+
 Each workflow has its own requirements listed in its README file.
 
-## 📖 Documentation
-
-Each workflow includes:
-- **README.md** - Complete documentation
-- **SETUP.md** - Quick setup guide
-- **workflow.json** - Importable n8n workflow
-- **CHANGELOG.md** - Version history
 
 ## 🔧 Installation
 
@@ -81,14 +73,14 @@ While this is a personal collection, suggestions and improvements are welcome:
 
 ## 📄 License
 
-These workflows are provided as-is, free to use and modify for personal or commercial purposes.
+These workflows are provided as-is, free to use and modify for personal or commercial purposes under MIT License.
 
 ## ⚠️ Disclaimer
 
-- Always test workflows in a safe environment first
+- Always test workflows in a safe environment first or dry run
 - Backup important data before running automation workflows
 - Review and customize workflows for your specific needs
-- Use at your own risk
+- Use at your own risk and be responsible
 
 ## 🔗 Resources
 
@@ -99,26 +91,9 @@ These workflows are provided as-is, free to use and modify for personal or comme
 ## 📧 Contact
 
 For issues or questions about these workflows:
+
 - Open an issue on GitHub
 - Check existing issues for solutions
+- Email me -> [ashokraja1910@gmail.com](mailto:ashokraja1910@gmail.com)
 
 ---
-
-**Repository Structure:**
-```
-n8n-workflows/
-├── README.md                    # This file
-├── .gitignore                   # Git ignore rules
-├── file-organizer/              # File organization workflow
-│   ├── README.md
-│   ├── SETUP.md
-│   ├── workflow.json
-│   └── ...
-└── (future workflows...)
-```
-
----
-
-**Last Updated:** November 2025  
-**Maintained by:** [@Ashok-19](https://github.com/Ashok-19)
-# n8n-workflows

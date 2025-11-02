@@ -1,6 +1,39 @@
 # 📁 n8n File Organizer Workflow
 
-An intelligent, automated file organization workflow for n8n that organizes your files based on their extensions into a well-structured directory hierarchy.
+An automated file organization workflow for n8n that organizes your files based on their extensions into a well-structured directory hierarchy.
+
+## 🚀 Quick Start (5 Minutes)
+
+### Step 1: Import Workflow
+
+1. Open n8n interface
+2. Click **"+" → Import from File**
+3. Select `workflow.json`
+4. Click **"Import"**
+
+### Step 2: Configure Home Directory
+
+Edit the **Configuration** node and change:
+
+```javascript
+home: process.env.HOME || '/home/username'  // Change 'username' to YOUR username
+```
+
+### Step 3: Test in Dry-Run Mode
+
+1. In **Configuration** node, ensure `dry_run: true`
+2. Click **"Execute Workflow"**
+3. Check logs to verify file mappings look correct
+
+### Step 4: Go Live
+
+1. In **Configuration** node, set `dry_run: false`
+2. Click **"Execute Workflow"**
+3. Check email for results (if configured)
+
+**Optional:** Configure email notifications in the **Send Email** node, or delete it if not needed.
+
+---
 
 ## 🌟 Features
 
@@ -15,11 +48,13 @@ An intelligent, automated file organization workflow for n8n that organizes your
 ## 📋 Requirements
 
 ### System Requirements
+
 - **Operating System**: Linux (Ubuntu, Debian, Fedora, etc.)
 - **Shell**: Bash (default on most Linux systems)
 - **Tools**: `find`, `mv`, `mkdir` (standard Unix utilities)
 
 ### n8n Requirements
+
 - **n8n Version**: 1.0.0 or higher
 - **Node.js**: 18.x or higher
 - **Required Nodes**:
@@ -32,7 +67,9 @@ An intelligent, automated file organization workflow for n8n that organizes your
   - Manual Trigger (n8n-nodes-base.manualTrigger)
 
 ### SMTP Configuration (Optional)
+
 If you want email notifications, configure SMTP credentials in n8n:
+
 - Gmail, Outlook, or any SMTP server
 - Configure in n8n: Settings → Credentials → SMTP
 
@@ -54,6 +91,7 @@ home: process.env.HOME || '/home/username'  // Change 'username' to your actual 
 ```
 
 Or use an environment variable:
+
 ```bash
 export HOME=/home/yourusername
 ```
@@ -61,10 +99,12 @@ export HOME=/home/yourusername
 ### 3. Configure Email (Optional)
 
 Edit the **Send Email** node:
+
 - Set `toEmail` to your email address
 - Configure SMTP credentials (Settings → Credentials → SMTP)
 
 Or disable email:
+
 - Delete the connection from "Write Log" → "Send Email"
 
 ### 4. Test Run (Dry Run Mode)
@@ -116,6 +156,7 @@ $HOME/
 ## 🎯 Supported File Types
 
 ### Documents (90 types)
+
 - **Office**: docx, doc, pptx, ppt, xlsx, xls, odt, ods, odp
 - **PDFs**: pdf
 - **Text**: txt, md, markdown, rtf
@@ -125,15 +166,19 @@ $HOME/
 - **Code**: 70+ programming language extensions
 
 ### Pictures (20 types)
+
 - **Images**: png, jpg, jpeg, gif, webp, svg, bmp, tiff, tif, heic, heif, ico, raw, cr2, nef
 - **Design**: fig, sketch, xd, psd, ai
 - **Screenshots**: Auto-detected by filename
 
 ### Videos (10 types)
+
 mp4, avi, mkv, mov, wmv, flv, webm, m4v, mpg, mpeg
 
 ### Downloads (13 types)
+
 - **Installers**: deb, rpm, appimage, exe, msi, dmg, pkg
+  
 - **Binaries**: dll, so, lib, wasm, dylib, pyd
 
 **Total: 133 file types supported**
@@ -161,6 +206,7 @@ The workflow will now run automatically every day.
 ### Scanned Directories
 
 The workflow scans these directories by default:
+
 - `$HOME/Downloads` (root level + 1 level deep)
 - `$HOME/Documents` (root level + 1 level deep)
 - `$HOME/Pictures` (root level + 1 level deep)
@@ -177,6 +223,7 @@ $HOME/Desktop/file_change_logs/YYYY-MM-DDTHH-MM-SS.json
 ```
 
 Log format:
+
 ```json
 {
   "execution_id": "2025-11-03T00:58:02.582+05:30",
@@ -250,12 +297,13 @@ Modify the paths in the extension map:
 
 ### Disable Email Notifications
 
-1. Delete the **Send Email** node
+1. Delete or Deactivate the **Send Email** node
 2. Connect **Write Log** directly to end of workflow (or leave disconnected)
 
 ### Change Schedule Time
 
 Edit **Daily Schedule** node:
+
 - Default: 7:00 PM (19:00)
 - Change `triggerAtHour` to your preferred hour (0-23)
 
@@ -264,12 +312,14 @@ Edit **Daily Schedule** node:
 ### Workflow Not Moving Files
 
 **Check:**
+
 1. `dry_run` is set to `false` in Configuration node
 2. Home directory path is correct
 3. Permissions allow file operations
 4. Files actually exist in scanned directories
 
 **Run:**
+
 ```bash
 # Check permissions
 ls -la $HOME/Downloads
@@ -282,6 +332,7 @@ mv "$HOME/Downloads/test.pdf" "$HOME/Documents/PDF/test.pdf"
 ### Email Not Sending
 
 **Check:**
+
 1. SMTP credentials configured correctly
 2. Email node is connected in workflow
 3. Check n8n logs for email errors
@@ -294,6 +345,7 @@ mv "$HOME/Downloads/test.pdf" "$HOME/Documents/PDF/test.pdf"
 ### Permission Denied Errors
 
 **Solution:**
+
 ```bash
 # Fix permissions
 chmod 755 $HOME/Downloads
@@ -320,7 +372,7 @@ Found a bug or have a suggestion?
 
 ## 📝 License
 
-This workflow is provided as-is, free to use and modify.
+This workflow is provided as-is, free to use and modify under MIT license.
 
 ## 🔗 Links
 
@@ -330,12 +382,14 @@ This workflow is provided as-is, free to use and modify.
 ## 📧 Support
 
 For issues or questions:
+
 - Open an issue on GitHub
 - Check existing issues for solutions
 
 ## ⚠️ Disclaimer
 
-**IMPORTANT**: 
+**IMPORTANT**:
+
 - Always run in dry-run mode first
 - Test on a small number of files initially
 - Backup important files before bulk operations
@@ -345,12 +399,15 @@ For issues or questions:
 ## 🎉 Acknowledgments
 
 Built with:
+
 - [n8n](https://n8n.io/) - Workflow automation platform
 - Standard Unix utilities (find, mv, mkdir)
 
 ---
 
-**Version**: 1.0.0  
-**Last Updated**: November 2025  
-**Tested On**: Ubuntu 22.04, Debian 11, Fedora 38  
-**n8n Version**: 1.114.4
+**Tested On:**
+
+- Ubuntu 22.04
+- n8n Version 1.114.4
+
+---
